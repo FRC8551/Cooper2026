@@ -6,8 +6,6 @@ package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.MetersPerSecond;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Supplier;
 
 import com.pathplanner.lib.auto.AutoBuilder;
@@ -19,13 +17,9 @@ import com.pathplanner.lib.util.PathPlannerLogging;
 
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform2d;
-import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -33,7 +27,9 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.Robot;
 import frc.robot.Constants.SwerveConstants;
+import frc.robot.Robot.DriveMode;
 import swervelib.SwerveDrive;
 import swervelib.parser.SwerveParser;
 import swervelib.telemetry.SwerveDriveTelemetry;
@@ -112,41 +108,6 @@ public class SwerveSubsystem extends SubsystemBase {
     }
 
     SmartDashboard.getEntry("Field/Fuel").setDoubleArray(arr);
-
-    // Limelight 3G MT1
-    // LimelightHelpers.PoseEstimate ll3Gmt1 =
-    // LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight-better");
-    // SmartDashboard.putString("ll3Gmt1 Pose", ll3Gmt1.pose.toString());
-    // if (ll3Gmt1 != null && ll3Gmt1.tagCount > 0) {
-    // m_swerve.setVisionMeasurementStdDevs(VecBuilder.fill(0.5, 0.5, 0.5));
-    // m_swerve.addVisionMeasurement(new Pose2d(6.5, 4.5,
-    // Rotation2d.fromDegrees(90)), ll3Gmt1.timestampSeconds);
-    // }
-
-    // Limelight 3G MT2
-    // LimelightHelpers.SetRobotOrientation("limelight-better",
-    // m_swerve.swerveDrivePoseEstimator.getEstimatedPosition().getRotation().getDegrees(),
-    // 0, 0, 0, 0, 0);
-    // LimelightHelpers.PoseEstimate ll3Gmt2 =
-    // LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight-better");
-    // SmartDashboard.putString("ll3Gmt2 Pose", ll3Gmt2.pose.toString());
-    // if (ll3Gmt2 != null && ll3Gmt2.tagCount > 0) {
-    // m_swerve.setVisionMeasurementStdDevs(VecBuilder.fill(0.5, 0.5, 0.5));
-    // m_swerve.addVisionMeasurement(ll3Gmt2.pose, ll3Gmt2.timestampSeconds);
-    // }
-
-    // LimelightHelpers.SetRobotOrientation("limelight-better",
-    // m_swerve.swerveDrivePoseEstimator.getEstimatedPosition().getRotation().getDegrees(),
-    // 0, 0, 0, 0, 0);
-    // LimelightHelpers.PoseEstimate ll3Gmt2 =
-    // LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight-better");
-    // if (ll3Gmt2 != null &&
-    // Math.abs(m_swerve.getGyro().getYawAngularVelocity().magnitude()) <= 720 &&
-    // ll3Gmt2.tagCount != 0) {
-    // System.out.println(ll3Gmt2.tagCount);
-    // m_swerve.setVisionMeasurementStdDevs(VecBuilder.fill(0.5, 0.5, 0.5));
-    // m_swerve.addVisionMeasurement(ll3Gmt2.pose, ll3Gmt2.timestampSeconds);
-    // }
   }
 
   public void setupPathPlanner() {
@@ -183,6 +144,12 @@ public class SwerveSubsystem extends SubsystemBase {
         pose,
         constraints,
         MetersPerSecond.of(0));
+  }
+
+  public Command drive(Supplier<ChassisSpeeds> velocity, Supplier<Boolean> hubAimActive) {
+    return run(() -> {
+      DriveMode driveMode = Robot.getDriveMode();
+    });
   }
 
   public Command driveRobotOriented(Supplier<ChassisSpeeds> velocity) {

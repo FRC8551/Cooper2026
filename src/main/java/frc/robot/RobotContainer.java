@@ -54,13 +54,13 @@ public class RobotContainer {
 
   // Commands
   private final Command m_driveRobotOrientedAngularVelocity = m_swerveSubsystem
-      .driveRobotOriented(m_robotRelative);
+      .drive(m_robotRelative, () -> m_driverController.axisGreaterThan(3, 0.5).getAsBoolean());
 
   private final Command m_driveFieldOrientedAngularVelocity = m_swerveSubsystem
-      .driveFieldOriented(m_allianceRelativeAngularVelocity);
+      .drive(m_allianceRelativeAngularVelocity, () -> m_driverController.axisGreaterThan(3, 0.5).getAsBoolean());
 
   private final Command m_driveFieldOrientedDirectAngle = m_swerveSubsystem
-      .driveFieldOriented(m_allianceRelativeDirectAngle);
+      .drive(m_allianceRelativeDirectAngle, () -> m_driverController.axisGreaterThan(3, 0.5).getAsBoolean());
 
   private final SendableChooser<Command> m_autoChooser;
 

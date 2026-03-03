@@ -15,7 +15,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
 public class Robot extends TimedRobot {
-  enum DriveMode {
+  public enum DriveMode {
     RobotOriented,
     FieldOrientedAngularVelocity,
     FieldOrientedDirectAngle
@@ -28,7 +28,7 @@ public class Robot extends TimedRobot {
   @SuppressWarnings("unused")
   private final PowerDistribution m_powerDist = new PowerDistribution(0, ModuleType.kCTRE);
 
-  private final SendableChooser<DriveMode> m_driveModeChooser = new SendableChooser<>();
+  private final static SendableChooser<DriveMode> m_driveModeChooser = new SendableChooser<>();
   private DriveMode m_lastDriveMode;
 
   public Robot() {
@@ -44,13 +44,17 @@ public class Robot extends TimedRobot {
     SmartDashboard.putData("Drive Mode", m_driveModeChooser);
   }
 
+  public static DriveMode getDriveMode() {
+    return m_driveModeChooser.getSelected();
+  }
+
   @Override
   public void robotPeriodic() {
     CommandScheduler.getInstance().run();
 
-    if (m_driveModeChooser.getSelected() != m_lastDriveMode) {
-      m_robotContainer.changeDriveMode(m_driveModeChooser.getSelected());
-      m_lastDriveMode = m_driveModeChooser.getSelected();
+    if (getDriveMode() != m_lastDriveMode) {
+      m_robotContainer.changeDriveMode(getDriveMode());
+      m_lastDriveMode = getDriveMode();
     }
   }
 

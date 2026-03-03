@@ -38,14 +38,14 @@ public class ShooterSubsystem extends SubsystemBase {
 
     leftConfig.inverted(true);
     leftConfig.idleMode(IdleMode.kCoast);
-    leftConfig.closedLoop.pid(0, 0, 0);
+    leftConfig.closedLoop.pid(0.001, 0, 0);
     leftConfig.closedLoop.feedForward.apply(ffConfig);
 
     SparkFlexConfig rightConfig = new SparkFlexConfig();
 
     rightConfig.inverted(false);
     rightConfig.idleMode(IdleMode.kCoast);
-    rightConfig.closedLoop.pid(0, 0, 0);
+    rightConfig.closedLoop.pid(0.001, 0, 0);
     rightConfig.closedLoop.feedForward.apply(ffConfig);
 
     m_shooterLeftMotor.configure(leftConfig, ResetMode.kNoResetSafeParameters, PersistMode.kPersistParameters);
@@ -59,15 +59,15 @@ public class ShooterSubsystem extends SubsystemBase {
   }
 
   public void runShooter() {
-    m_shooterLeftMotor.getClosedLoopController().setSetpoint(3700, ControlType.kVelocity);
-    m_shooterRightMotor.getClosedLoopController().setSetpoint(3700,
+    m_shooterLeftMotor.getClosedLoopController().setSetpoint(3900, ControlType.kVelocity);
+    m_shooterRightMotor.getClosedLoopController().setSetpoint(3900,
         ControlType.kVelocity);
-    if (m_shooterRightMotor.getEncoder().getVelocity() >= 3500) {
-      m_lowerIndexerMotor.set(VictorSPXControlMode.PercentOutput, 0.65);
-      m_upperIndexerMotor.set(VictorSPXControlMode.PercentOutput, 0.75);
+    if (m_shooterRightMotor.getEncoder().getVelocity() >= 3700) {
+      m_lowerIndexerMotor.set(VictorSPXControlMode.PercentOutput, 0.7);
+      m_upperIndexerMotor.set(VictorSPXControlMode.PercentOutput, 0.85);
     } else {
       m_lowerIndexerMotor.set(VictorSPXControlMode.PercentOutput, 0.31);
-      m_upperIndexerMotor.set(VictorSPXControlMode.PercentOutput, 0.75);
+      m_upperIndexerMotor.set(VictorSPXControlMode.PercentOutput, 0.85);
     }
   }
 
