@@ -94,13 +94,18 @@ public class ShooterSubsystem extends SubsystemBase {
 
       // Restored: feed still requires the flywheel at speed AND (if hub-aim
       // is enabled on the driver-station toggle) the chassis being aimed.
+      // NEW: also requires the alliance hub to actually be active this
+      // shift — fuel scored into an inactive hub is worth 0 points, so
+      // there's no reason to dump it through. The flywheel stays spun up
+      // regardless, so there's zero delay the instant the hub goes active.
       boolean flywheelReady = m_shooterRightMotor.getEncoder().getVelocity() > targetRPM
           - ShooterConstants.kShooterRPMTolerance;
 
       boolean aimEnabled = UserConfig.getHubAimEnabled();
       boolean aimed = SwerveSubsystem.isAimedAtHub();
+      boolean hubActive = SwerveSubsystem.isHubActive();
 
-      boolean readyToFeed = flywheelReady && (!aimEnabled || aimed);
+      boolean readyToFeed = flywheelReady && (!aimEnabled || aimed) && hubActive;
       m_flywheelReady = readyToFeed;
 
       if (readyToFeed) {

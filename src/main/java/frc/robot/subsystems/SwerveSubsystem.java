@@ -331,7 +331,15 @@ public class SwerveSubsystem extends SubsystemBase {
     return robotPose.getTranslation().getDistance(targetTranslation);
   }
 
-  
+  /**
+   * 2026 REBUILT hub active/inactive shift logic — fuel scored into an
+   * inactive hub is worth 0 points. This follows WPILib's official
+   * reference implementation (docs.wpilib.org/en/stable/docs/yearly-overview/2026-game-data.html):
+   * the field picks which alliance's hub goes inactive first (sent via
+   * DriverStation.getGameSpecificMessage(), 'R' or 'B'), then hubs alternate
+   * active/inactive through four ~25s shifts. The hub is always active
+   * during auto, the 10s transition shift, and the final 30s of teleop.
+   */
   public static boolean isHubActive() {
     Optional<DriverStation.Alliance> alliance = DriverStation.getAlliance();
     if (alliance.isEmpty()) {
