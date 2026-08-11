@@ -27,8 +27,10 @@ public class UserConfig {
     private static boolean m_hubAimButtonOverride = true;
 
     public static final void initialize() {
-        m_driveModeChooser.setDefaultOption("Field-Oriented Direct Angle", DriveMode.FieldOrientedDirectAngle);
-        m_driveModeChooser.addOption("Field-Oriented Angular Velocity", DriveMode.FieldOrientedAngularVelocity);
+        // Direct-angle heading control was removed from RobotContainer (too
+        // twitchy for manual driving) — angular-velocity is now the only
+        // field-oriented rotation mode, and the default.
+        m_driveModeChooser.setDefaultOption("Field-Oriented Angular Velocity", DriveMode.FieldOrientedAngularVelocity);
         m_driveModeChooser.addOption("Robot-Oriented", DriveMode.RobotOriented);
 
         m_hubAimChooser.setDefaultOption("Enabled", true);

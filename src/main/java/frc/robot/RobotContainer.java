@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import java.util.function.ToIntFunction;
+
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 
@@ -37,11 +39,9 @@ public class RobotContainer {
 
   /**
    * PS5 (DualSense) and Xbox/XInput-style pads report buttons and axes at
-   * different raw indices, so the same physical action ("shoot", "reverse
-   * intake") lives at a different number depending on which pad is plugged
-   * in. This holds one device's worth of raw indices for every logical
-   * action this robot uses, so the rest of the class doesn't need to know
-   * or care which type is actually connected.
+   * different raw indices. This holds one device's worth of raw indices for
+   * every logical action this robot uses, so the rest of the class doesn't
+   * need to know or care which type is actually connected.
    */
   private static final class ControllerMap {
     final int leftXAxis, leftYAxis, rightXAxis, rightYAxis;
@@ -99,23 +99,42 @@ public class RobotContainer {
       /* Create */ 9, /* Options */ 10,
       /* L1 */ 5, /* R1 */ 6);
 
-  // Controllers — CommandGenericHID works with any raw HID gamepad, so the
-  // same field type covers a PS5 or an Xbox/off-brand pad without caring
-  // which is actually plugged in. See detectControllerMap() below.
+  // Controllers — CommandGenericHID works with any raw HID gamepad.
   private final CommandGenericHID m_driverController = new CommandGenericHID(OIConstants.kDriverControllerPort);
   private final CommandGenericHID m_operatorController = new CommandGenericHID(OIConstants.kOperatorControllerPort);
 
-  private final ControllerMap m_driverMap = detectControllerMap(OIConstants.kDriverControllerPort);
-  private final ControllerMap m_operatorMap = detectControllerMap(OIConstants.kOperatorControllerPort);
-
   /**
-   * Reads what the Driver Station reported for the device at this port and
-   * picks the matching index table. This is only read once, at startup —
-   * if a controller gets swapped for a different type, the code needs a
-   * restart (redeploy or just power-cycle the robot) to pick up the change.
+   * Re-checked every time it's called, NOT cached. The Driver Station may
+   * not have identified the plugged-in device yet at the exact moment
+   * RobotContainer is constructed (very early in boot); caching that one
+   * read permanently locks in a wrong guess for the whole session. This is
+   * cheap (a HAL-cached lookup, no IO) so re-reading it on every button/axis
+   * poll (~50 times a second) costs nothing and self-corrects once the DS
+   * catches up.
    */
-  private static ControllerMap detectControllerMap(int port) {
+  private static ControllerMap currentMap(int port) {
     return DriverStation.getJoystickIsXbox(port) ? XBOX_MAP : PS5_MAP;
+  }
+
+  private Trigger driverButton(ToIntFunction<ControllerMap> selector) {
+    return new Trigger(
+        () -> m_driverController.getHID().getRawButton(selector.applyAsInt(currentMap(OIConstants.kDriverControllerPort))));
+  }
+
+  private Trigger driverAxisGreaterThan(ToIntFunction<ControllerMap> selector, double threshold) {
+    return new Trigger(
+        () -> m_driverController.getRawAxis(selector.applyAsInt(currentMap(OIConstants.kDriverControllerPort))) > threshold);
+  }
+
+  private Trigger operatorButton(ToIntFunction<ControllerMap> selector) {
+    return new Trigger(
+        () -> m_operatorController.getHID()
+            .getRawButton(selector.applyAsInt(currentMap(OIConstants.kOperatorControllerPort))));
+  }
+
+  private Trigger operatorAxisGreaterThan(ToIntFunction<ControllerMap> selector, double threshold) {
+    return new Trigger(
+        () -> m_operatorController.getRawAxis(selector.applyAsInt(currentMap(OIConstants.kOperatorControllerPort))) > threshold);
   }
 
   // Subsystems
@@ -127,23 +146,26 @@ public class RobotContainer {
   // NOTE: these axes are read continuously every loop, so translation and
   // rotation already return to zero (and the robot stops moving/turning)
   // the instant a stick is released — no extra binding needed.
+  //
+  // Rotation is angular-velocity only now (stick deflection = turn rate).
+  // The old "direct angle" mode (stick position = absolute target heading,
+  // via withControllerHeadingAxis) was removed — it's notoriously twitchy
+  // near center since tiny stick movements swing the commanded heading a
+  // lot, and it's what "too much rotation" was almost certainly caused by,
+  // on top of the axis-index bug above. Angular-velocity is the standard
+  // smooth-360 approach recommended across WPILib/Chief Delphi discussions.
   private final SwerveInputStream m_robotRelative = SwerveInputStream.of(
       m_swerveSubsystem.getSwerveDrive(),
-      () -> -m_driverController.getRawAxis(m_driverMap.leftYAxis),
-      () -> -m_driverController.getRawAxis(m_driverMap.leftXAxis))
-      .withControllerRotationAxis(() -> -m_driverController.getRawAxis(m_driverMap.rightXAxis))
+      () -> -m_driverController.getRawAxis(currentMap(OIConstants.kDriverControllerPort).leftYAxis),
+      () -> -m_driverController.getRawAxis(currentMap(OIConstants.kDriverControllerPort).leftXAxis))
+      .withControllerRotationAxis(
+          () -> -m_driverController.getRawAxis(currentMap(OIConstants.kDriverControllerPort).rightXAxis))
       .deadband(OIConstants.kDriverControllerDeadband)
       .scaleTranslation(0.8)
       .allianceRelativeControl(false);
 
   private final SwerveInputStream m_allianceRelativeAngularVelocity = m_robotRelative.copy()
       .allianceRelativeControl(true);
-
-  private final SwerveInputStream m_allianceRelativeDirectAngle = m_allianceRelativeAngularVelocity.copy()
-      .withControllerHeadingAxis(
-          () -> m_driverController.getRawAxis(m_driverMap.rightXAxis) * (m_swerveSubsystem.isRedAlliance() ? 1 : -1),
-          () -> m_driverController.getRawAxis(m_driverMap.rightYAxis) * (m_swerveSubsystem.isRedAlliance() ? 1 : -1))
-      .headingWhile(true);
 
   // Commands
 
@@ -174,78 +196,80 @@ public class RobotContainer {
 
   private void configureBindings() {
     // Zero gyro (Xbox Y / PS5 Triangle)
-    m_driverController.button(m_driverMap.zeroGyroButton)
-        .onTrue(new InstantCommand(() -> m_swerveSubsystem.zeroGyro()));
+    driverButton(m -> m.zeroGyroButton).onTrue(new InstantCommand(() -> m_swerveSubsystem.zeroGyro()));
 
     // Analog intake: reads live trigger pressure every loop instead of a
     // fixed 0.5, so power scales with how far the trigger is squeezed.
-    m_driverController.axisGreaterThan(m_driverMap.leftTriggerAxis, kTriggerActivationThreshold)
-        .whileTrue(m_intakeSubsystem.runIntake(() -> m_driverController.getRawAxis(m_driverMap.leftTriggerAxis)))
+    driverAxisGreaterThan(m -> m.leftTriggerAxis, kTriggerActivationThreshold)
+        .whileTrue(m_intakeSubsystem.runIntake(
+            () -> m_driverController.getRawAxis(currentMap(OIConstants.kDriverControllerPort).leftTriggerAxis)))
         .onFalse(m_intakeSubsystem.stopIntake());
 
     // Shooter. Also engages chassis hub-aim while held — see the drive()
     // call in changeDriveMode() below, gated by UserConfig.getHubAimEnabled().
-    m_driverController.axisGreaterThan(m_driverMap.rightTriggerAxis, kTriggerActivationThreshold)
+    driverAxisGreaterThan(m -> m.rightTriggerAxis, kTriggerActivationThreshold)
         .whileTrue(m_shooterSubsystem.runShooter())
         .onFalse(m_shooterSubsystem.stopShooter());
 
     // Combo: Xbox Back+Start / PS5 Create+Options
-    m_driverController.button(m_driverMap.comboButtonA).and(m_driverController.button(m_driverMap.comboButtonB))
+    driverButton(m -> m.comboButtonA).and(driverButton(m -> m.comboButtonB))
         .onTrue(m_swerveSubsystem.zeroGyroWithAllianceCommand());
 
-    // POV up/down converted to whileTrue-only (no onFalse). Releasing the
-    // button now simply interrupts this command and hands control straight
-    // back to the pivot's default command (the analog stick control below)
-    // instead of leaving a permanent "hold at 0%" command occupying the
-    // subsystem forever. POV/D-pad indices are the same convention on
-    // basically every gamepad, so this doesn't need to come from the map.
+    // POV/D-pad index is the same convention on basically every gamepad, so
+    // this doesn't need to come from the map.
     m_operatorController.povUp().whileTrue(m_intakeSubsystem.setIntakePivotSpeed(0.2));
     m_operatorController.povDown().whileTrue(m_intakeSubsystem.setIntakePivotSpeed(-0.2));
 
-    // Reverse intake (Xbox X / PS5 Square)
-    m_operatorController.button(m_operatorMap.reverseIntakeButton)
+    // NEW: clear analog Intake / Outtake for the operator, mirroring the
+    // driver's L2/R2. These were unused on the operator controller before.
+    operatorAxisGreaterThan(m -> m.leftTriggerAxis, kTriggerActivationThreshold)
+        .whileTrue(m_intakeSubsystem.runIntake(
+            () -> m_operatorController.getRawAxis(currentMap(OIConstants.kOperatorControllerPort).leftTriggerAxis)))
+        .onFalse(m_intakeSubsystem.stopIntake());
+
+    operatorAxisGreaterThan(m -> m.rightTriggerAxis, kTriggerActivationThreshold)
+        .whileTrue(m_intakeSubsystem.runIntake(
+            () -> -m_operatorController.getRawAxis(currentMap(OIConstants.kOperatorControllerPort).rightTriggerAxis)))
+        .onFalse(m_intakeSubsystem.stopIntake());
+
+    // Reverse intake / secondary outtake (Xbox X / PS5 Square) — kept as a
+    // fixed-speed backup alongside the new analog outtake above.
+    operatorButton(m -> m.reverseIntakeButton)
         .whileTrue(m_intakeSubsystem.runIntake(-0.65))
         .onFalse(m_intakeSubsystem.stopIntake());
 
     // Reverse indexers (Xbox A / PS5 Cross)
-    m_operatorController.button(m_operatorMap.reverseIndexerButton)
+    operatorButton(m -> m.reverseIndexerButton)
         .whileTrue(m_shooterSubsystem.reverseIndexers())
         .onFalse(m_shooterSubsystem.stopShooter());
 
-    // Pivot to position 0 (Xbox B / PS5 Circle — chosen to avoid double-
-    // binding the same physical button as reverseIndexerButton above)
-    m_operatorController.button(m_operatorMap.pivotZeroButton)
-        .onTrue(m_intakeSubsystem.setPivotPosition(0));
+    // Pivot to position 0 (Xbox B / PS5 Circle)
+    operatorButton(m -> m.pivotZeroButton).onTrue(m_intakeSubsystem.setPivotPosition(0));
 
     // Pivot to position 16 (Xbox Y / PS5 Triangle)
-    m_operatorController.button(m_operatorMap.pivotSixteenButton)
-        .onTrue(m_intakeSubsystem.setPivotPosition(16));
+    operatorButton(m -> m.pivotSixteenButton).onTrue(m_intakeSubsystem.setPivotPosition(16));
 
     // Intake backup (Xbox Back / PS5 Create)
-    m_operatorController.button(m_operatorMap.intakeBackupButton)
+    operatorButton(m -> m.intakeBackupButton)
         .whileTrue(m_intakeSubsystem.runIntake(0.5))
         .onFalse(m_intakeSubsystem.stopIntake());
 
     // Intake full-power backup (Xbox Start / PS5 Options). Release fully
-    // stops the intake now, per your last request.
-    m_operatorController.button(m_operatorMap.intakeFullBackupButton)
+    // stops the intake.
+    operatorButton(m -> m.intakeFullBackupButton)
         .onTrue(m_intakeSubsystem.runIntake(1))
         .onFalse(m_intakeSubsystem.stopIntake());
 
     // Shooter backup (Xbox LeftBumper / PS5 L1)
-    m_operatorController.button(m_operatorMap.shooterBackupButton)
+    operatorButton(m -> m.shooterBackupButton)
         .onTrue(m_shooterSubsystem.runShooter())
         .onFalse(m_shooterSubsystem.stopShooter());
 
     // Quick in-match hub-aim on/off toggle (Xbox RightBumper / PS5 R1).
-    // Flips UserConfig's button override — the dashboard "Hub Aim" chooser
-    // needs to stay set to Enabled for this to have any effect.
-    m_operatorController.button(m_operatorMap.hubAimToggleButton)
-        .onTrue(new InstantCommand(UserConfig::toggleHubAim));
+    operatorButton(m -> m.hubAimToggleButton).onTrue(new InstantCommand(UserConfig::toggleHubAim));
 
     // Driver tool: rumble the driver's controller as soon as the flywheel
-    // is actually at speed and ready to feed, so they get a physical cue
-    // instead of having to watch the dashboard RPM readout.
+    // is actually at speed and ready to feed.
     new Trigger(m_shooterSubsystem::isReadyToFire)
         .onTrue(new InstantCommand(() -> m_driverController.setRumble(RumbleType.kBothRumble, 0.6)))
         .onFalse(new InstantCommand(() -> m_driverController.setRumble(RumbleType.kBothRumble, 0.0)));
@@ -254,13 +278,9 @@ public class RobotContainer {
   private void configureDefaultCommands() {
     // Analog pivot fine-control: operator's right stick Y drives the pivot
     // whenever no other pivot command (POV, setPivotPosition) is active.
-    // Only actuates the motor when the stick is meaningfully off-center —
-    // when centered it does nothing at all, rather than calling set(0),
-    // so it can't stomp on a closed-loop position hold from
-    // setPivotPosition() (circle/triangle) the moment the command frees up.
     m_intakeSubsystem.setDefaultCommand(
         m_intakeSubsystem.manualPivotControl(() -> {
-          double stick = -m_operatorController.getRawAxis(m_operatorMap.rightYAxis);
+          double stick = -m_operatorController.getRawAxis(currentMap(OIConstants.kOperatorControllerPort).rightYAxis);
           if (Math.abs(stick) < kPivotStickDeadband) {
             return 0.0;
           }
@@ -273,17 +293,20 @@ public class RobotContainer {
       m_swerveSubsystem.getCurrentCommand().cancel();
     }
 
-    SwerveInputStream newInputStream = null;
+    // FieldOrientedDirectAngle intentionally falls back to angular-velocity
+    // rotation now (see the input-stream comment above) instead of a
+    // dedicated heading-snap stream. If an old dashboard save still has
+    // that option selected, this keeps it from breaking instead of leaving
+    // newInputStream null.
+    SwerveInputStream newInputStream = m_robotRelative;
 
     switch (driveMode) {
       case RobotOriented:
         newInputStream = m_robotRelative;
         break;
       case FieldOrientedAngularVelocity:
-        newInputStream = m_allianceRelativeAngularVelocity;
-        break;
       case FieldOrientedDirectAngle:
-        newInputStream = m_allianceRelativeDirectAngle;
+        newInputStream = m_allianceRelativeAngularVelocity;
         break;
       default:
         break;
@@ -294,8 +317,8 @@ public class RobotContainer {
     // still gates whether this actually does anything.
     m_swerveSubsystem.setDefaultCommand(
         m_swerveSubsystem.drive(newInputStream,
-            () -> m_driverController.axisGreaterThan(m_driverMap.rightTriggerAxis, kTriggerActivationThreshold)
-                .getAsBoolean()));
+            () -> m_driverController
+                .getRawAxis(currentMap(OIConstants.kDriverControllerPort).rightTriggerAxis) > kTriggerActivationThreshold));
   }
 
   public Command getAutonomousCommand() {
