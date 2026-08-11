@@ -69,8 +69,14 @@ public class ShooterSubsystem extends SubsystemBase {
     SmartDashboard.putNumber(ShooterConstants.kSlash + "Shooter RPM", m_shooterRightMotor.getEncoder().getVelocity());
 
     if (m_shooterActive) {
-      // Run flywheel
-      double targetRPM = getRPM(SwerveSubsystem.getDistanceToHub(SwerveSubsystem.m_robotPose));
+      // Run flywheel — manual tuner number overrides the distance-based
+      // table when enabled on the dashboard ("Manual Shooter RPM"). Off the
+      // competition field, distance-to-hub isn't meaningful, so this is the
+      // way to actually test/tune the shooter at a known RPM.
+      double targetRPM = UserConfig.getManualShooterRPMEnabled()
+          ? UserConfig.getShooterRPM()
+          : getRPM(SwerveSubsystem.getDistanceToHub(SwerveSubsystem.m_robotPose));
+      SmartDashboard.putNumber(ShooterConstants.kSlash + "Target RPM", targetRPM);
       double currentRPM = m_shooterRightMotor.getEncoder().getVelocity();
 
       if (currentRPM < targetRPM - ShooterConstants.kShooterRPMTolerance) {

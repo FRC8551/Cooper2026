@@ -17,6 +17,7 @@ public class UserConfig {
     private static final SendableChooser<Boolean> m_bumpAimChooser = new SendableChooser<>();
     private static final SendableChooser<Boolean> m_beansModeChooser = new SendableChooser<>();
     private static final SendableChooser<Boolean> m_apriltagLocalizationChooser = new SendableChooser<>();
+    private static final SendableChooser<Boolean> m_manualShooterRPMChooser = new SendableChooser<>();
 
     // Quick in-match toggle for hub-aim, flipped from a controller button.
     // SendableChooser has no programmatic "set selected" — only the
@@ -45,11 +46,20 @@ public class UserConfig {
         m_apriltagLocalizationChooser.setDefaultOption("Enabled", true);
         m_apriltagLocalizationChooser.addOption("Disabled", false);
 
+        // Off the competition field, distance-to-hub is meaningless (no
+        // AprilTags to correct pose), so the auto RPM table always lands on
+        // whatever distance the robot's pose happens to be stuck at. This
+        // lets the existing "Shooter RPM Tuner" number actually drive the
+        // shooter directly for bench testing instead of being unused.
+        m_manualShooterRPMChooser.setDefaultOption("Disabled", false);
+        m_manualShooterRPMChooser.addOption("Enabled", true);
+
         SmartDashboard.putData("Drive Mode", m_driveModeChooser);
         SmartDashboard.putData("Hub Aim", m_hubAimChooser);
         SmartDashboard.putData("Bump Aim", m_bumpAimChooser);
         SmartDashboard.putData("Beans Mode", m_beansModeChooser);
         SmartDashboard.putData("AprilTag Localization", m_apriltagLocalizationChooser);
+        SmartDashboard.putData("Manual Shooter RPM", m_manualShooterRPMChooser);
         SmartDashboard.putNumber("Shooter RPM Tuner", ShooterConstants.kShooterRPM);
     }
 
@@ -76,6 +86,10 @@ public class UserConfig {
 
     public static boolean getAprilTagLocalizationEnabled() {
         return m_apriltagLocalizationChooser.getSelected();
+    }
+
+    public static boolean getManualShooterRPMEnabled() {
+        return m_manualShooterRPMChooser.getSelected();
     }
 
     public static double getShooterRPM() {
