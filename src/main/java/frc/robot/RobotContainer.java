@@ -143,7 +143,7 @@ public class RobotContainer {
         .onFalse(m_intakeSubsystem.stopIntake());
 
     // Xbox button(8)=Start -> PS5 Options — intake backup
-    m_operatorController.options().onTrue(m_intakeSubsystem.runIntake(1)).onFalse(m_intakeSubsystem.runIntake(0.5));
+    m_operatorController.options().onTrue(m_intakeSubsystem.runIntake(1)).onFalse(m_intakeSubsystem.stopIntake());
 
     // NEW: operator shooter backup, previously missing. L1 was unused.
     m_operatorController.L1()
