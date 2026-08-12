@@ -4,6 +4,8 @@
 
 package frc.robot.subsystems;
 
+import java.util.Optional;
+
 import com.revrobotics.PersistMode;
 import com.revrobotics.ResetMode;
 import com.revrobotics.spark.SparkFlex;
@@ -14,6 +16,7 @@ import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -103,7 +106,7 @@ public class ShooterSubsystem extends SubsystemBase {
 
       boolean aimEnabled = UserConfig.getHubAimEnabled();
       boolean aimed = SwerveSubsystem.isAimedAtHub();
-      boolean hubActive = SwerveSubsystem.isHubActive();
+      boolean hubActive = isHubActive();
 
       boolean readyToFeed = flywheelReady && (!aimEnabled || aimed) && hubActive;
       m_flywheelReady = readyToFeed;
@@ -127,16 +130,80 @@ public class ShooterSubsystem extends SubsystemBase {
     return m_flywheelReady;
   }
 
+  /**
+   * 2026 REBUILT hub active/inactive shift logic — fuel scored into an
+   * inactive hub is worth 0 points. This follows WPILib's official
+   * reference implementation (docs.wpilib.org/en/stable/docs/yearly-overview/2026-game-data.html):
+   * the field picks which alliance's hub goes inactive first (sent via
+   * DriverStation.getGameSpecificMessage(), 'R' or 'B'), then hubs alternate
+   * active/inactive through four ~25s shifts. The hub is always active
+   * during auto, the 10s transition shift, and the final 30s of teleop.
+   * Self-contained here — only depends on DriverStation, nothing else.
+   */
+  private static boolean isHubActive() {
+    Optional<DriverStation.Alliance> alliance = DriverStation.getAlliance();
+    if (alliance.isEmpty()) {
+      // No alliance assigned (e.g. not connected to FMS/DS yet) — no hub.
+      return false;
+    }
+    if (DriverStation.isAutonomousEnabled()) {
+      return true;
+    }
+    if (!DriverStation.isTeleopEnabled()) {
+      // Disabled or between periods — no active hub to speak of.
+      return false;
+    }
+
+    double matchTime = DriverStation.getMatchTime();
+    String gameData = DriverStation.getGameSpecificMessage();
+    if (gameData.isEmpty()) {
+      // Likely just entered teleop and the field hasn't sent it yet.
+      return true;
+    }
+
+    boolean redInactiveFirst;
+    switch (gameData.charAt(0)) {
+      case 'R':
+        redInactiveFirst = true;
+        break;
+      case 'B':
+        redInactiveFirst = false;
+        break;
+      default:
+        // Corrupt/unexpected data — assume active rather than sitting idle.
+        return true;
+    }
+
+    boolean isRed = alliance.get() == DriverStation.Alliance.Red;
+    boolean shift1Active = isRed ? !redInactiveFirst : redInactiveFirst;
+
+    if (matchTime > 130) {
+      return true; // Transition shift (2:20-2:10 remaining) — always active
+    } else if (matchTime > 105) {
+      return shift1Active; // Shift 1 (2:10-1:45)
+    } else if (matchTime > 80) {
+      return !shift1Active; // Shift 2 (1:45-1:20)
+    } else if (matchTime > 55) {
+      return shift1Active; // Shift 3 (1:20-0:55)
+    } else if (matchTime > 30) {
+      return !shift1Active; // Shift 4 (0:55-0:30)
+    } else {
+      return true; // Endgame (final 30s) — always active
+    }
+  }
+
   private double getRPM(double distanceMeters) {
-    // Known data points: {distance, RPM}
+    // Known data points: {distance, RPM}. Lowered ~40% across the board on
+    // request — was pegging around 3200-3400 at typical bench-testing
+    // distances, which was too high.
     double[][] dataPoints = {
-        { 1.6, 2300 },
-        { 2.5, 2650 },
-        { 3.5, 2900 },
-        { 4.0, 3050 },
-        { 5.0, 3200 },
-        { 5.4, 3400 },
-        { 10, 5400 }
+        { 1.6, 1380 },
+        { 2.5, 1590 },
+        { 3.5, 1740 },
+        { 4.0, 1830 },
+        { 5.0, 1920 },
+        { 5.4, 2040 },
+        { 10, 3240 }
     };
 
     // Clamp to bounds
