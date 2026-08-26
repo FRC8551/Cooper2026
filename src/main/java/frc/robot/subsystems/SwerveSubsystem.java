@@ -186,7 +186,7 @@ public class SwerveSubsystem extends SubsystemBase {
 
   public Command driveToPose(Pose2d pose) {
     PathConstraints constraints = new PathConstraints(
-        m_swerve.getMaximumChassisVelocity(), 1.0,
+        m_swerve.getMaximumChassisVelocity(), 0.5,
         m_swerve.getMaximumChassisAngularVelocity(), Units.degreesToRadians(720));
 
     return AutoBuilder.pathfindToPose(
@@ -334,7 +334,8 @@ public class SwerveSubsystem extends SubsystemBase {
   /**
    * 2026 REBUILT hub active/inactive shift logic — fuel scored into an
    * inactive hub is worth 0 points. This follows WPILib's official
-   * reference implementation (docs.wpilib.org/en/stable/docs/yearly-overview/2026-game-data.html):
+   * reference implementation
+   * (docs.wpilib.org/en/stable/docs/yearly-overview/2026-game-data.html):
    * the field picks which alliance's hub goes inactive first (sent via
    * DriverStation.getGameSpecificMessage(), 'R' or 'B'), then hubs alternate
    * active/inactive through four ~25s shifts. The hub is always active

@@ -118,12 +118,14 @@ public class RobotContainer {
 
   private Trigger driverButton(ToIntFunction<ControllerMap> selector) {
     return new Trigger(
-        () -> m_driverController.getHID().getRawButton(selector.applyAsInt(currentMap(OIConstants.kDriverControllerPort))));
+        () -> m_driverController.getHID()
+            .getRawButton(selector.applyAsInt(currentMap(OIConstants.kDriverControllerPort))));
   }
 
   private Trigger driverAxisGreaterThan(ToIntFunction<ControllerMap> selector, double threshold) {
     return new Trigger(
-        () -> m_driverController.getRawAxis(selector.applyAsInt(currentMap(OIConstants.kDriverControllerPort))) > threshold);
+        () -> m_driverController
+            .getRawAxis(selector.applyAsInt(currentMap(OIConstants.kDriverControllerPort))) > threshold);
   }
 
   private Trigger operatorButton(ToIntFunction<ControllerMap> selector) {
@@ -134,7 +136,8 @@ public class RobotContainer {
 
   private Trigger operatorAxisGreaterThan(ToIntFunction<ControllerMap> selector, double threshold) {
     return new Trigger(
-        () -> m_operatorController.getRawAxis(selector.applyAsInt(currentMap(OIConstants.kOperatorControllerPort))) > threshold);
+        () -> m_operatorController
+            .getRawAxis(selector.applyAsInt(currentMap(OIConstants.kOperatorControllerPort))) > threshold);
   }
 
   // Subsystems
@@ -202,7 +205,9 @@ public class RobotContainer {
     // fixed 0.5, so power scales with how far the trigger is squeezed.
     driverAxisGreaterThan(m -> m.leftTriggerAxis, kTriggerActivationThreshold)
         .whileTrue(m_intakeSubsystem.runIntake(
-            () -> m_driverController.getRawAxis(currentMap(OIConstants.kDriverControllerPort).leftTriggerAxis)))
+            () -> Math
+                .min(m_driverController.getRawAxis(currentMap(OIConstants.kDriverControllerPort).leftTriggerAxis),
+                    0.5)))
         .onFalse(m_intakeSubsystem.stopIntake());
 
     // Shooter. Also engages chassis hub-aim while held — see the drive()
@@ -318,7 +323,8 @@ public class RobotContainer {
     m_swerveSubsystem.setDefaultCommand(
         m_swerveSubsystem.drive(newInputStream,
             () -> m_driverController
-                .getRawAxis(currentMap(OIConstants.kDriverControllerPort).rightTriggerAxis) > kTriggerActivationThreshold));
+                .getRawAxis(
+                    currentMap(OIConstants.kDriverControllerPort).rightTriggerAxis) > kTriggerActivationThreshold));
   }
 
   public Command getAutonomousCommand() {

@@ -21,17 +21,17 @@ import frc.robot.Constants.IntakeConstants;
 
 public class IntakeSubsystem extends SubsystemBase {
 
-private final SparkFlex m_intakeMotor = new SparkFlex(IntakeConstants.kIntakeMotorId, MotorType.kBrushless);
-private final SparkMax m_pivotMotor = new SparkMax(IntakeConstants.kPivotMotorId, MotorType.kBrushless);
+  private final SparkFlex m_intakeMotor = new SparkFlex(IntakeConstants.kIntakeMotorId, MotorType.kBrushless);
+  private final SparkMax m_pivotMotor = new SparkMax(IntakeConstants.kPivotMotorId, MotorType.kBrushless);
 
-private boolean m_intakeActive = false;
-private double m_intakeSpeed = 0.5;
-private boolean m_pivotCalibrated = false;
+  private boolean m_intakeActive = false;
+  private double m_intakeSpeed = 0.5;
+  private boolean m_pivotCalibrated = false;
 
   /** Creates a new IntakeSubsystem. */
-public IntakeSubsystem() {
+  public IntakeSubsystem() {
 
-SparkFlexConfig intakeConfig = new SparkFlexConfig();
+    SparkFlexConfig intakeConfig = new SparkFlexConfig();
     intakeConfig.closedLoop.feedForward.kV(0.00019);
     intakeConfig.closedLoop.pid(0.0001, 0, 0);
     intakeConfig.inverted(true);
@@ -40,7 +40,7 @@ SparkFlexConfig intakeConfig = new SparkFlexConfig();
 
     m_intakeMotor.configure(intakeConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
-SparkFlexConfig pivotConfig = new SparkFlexConfig();
+    SparkFlexConfig pivotConfig = new SparkFlexConfig();
     pivotConfig.closedLoop.pid(0.04, 0, 0);
     pivotConfig.inverted(true);
 
@@ -48,7 +48,7 @@ SparkFlexConfig pivotConfig = new SparkFlexConfig();
   }
 
   @Override
-public void periodic() {
+public void periodic() {s
 // This method will be called once per scheduler run
     SmartDashboard.putNumber(IntakeConstants.kSlash + "Intake RPM", m_intakeMotor.getEncoder().getVelocity());
     SmartDashboard.putNumber(IntakeConstants.kSlash + "Intake Output", m_intakeMotor.getAppliedOutput());
@@ -73,8 +73,8 @@ if (m_intakeActive) {
     }
   }
 
-public Command runIntake(double speed) {
-return runOnce(() -> {
+  public Command runIntake(double speed) {
+    return runOnce(() -> {
       m_intakeSpeed = speed;
       m_intakeActive = true;
     });
@@ -92,12 +92,12 @@ return runOnce(() -> {
     });
   }
 
-public Command stopIntake() {
-return runOnce(() -> m_intakeActive = false);
+  public Command stopIntake() {
+    return runOnce(() -> m_intakeActive = false);
   }
 
-public Command setIntakePivotSpeed(double speed) {
-return run(() -> m_pivotMotor.set(speed));
+  public Command setIntakePivotSpeed(double speed) {
+    return run(() -> m_pivotMotor.set(speed));
   }
 
   /**
@@ -116,9 +116,9 @@ return run(() -> m_pivotMotor.set(speed));
     });
   }
 
-public Command setPivotPosition(double position) {
-return runOnce(() -> {
-if (m_pivotCalibrated) {
+  public Command setPivotPosition(double position) {
+    return runOnce(() -> {
+      if (m_pivotCalibrated) {
         m_pivotMotor.getClosedLoopController().setSetpoint(position, ControlType.kPosition);
       }
     });
