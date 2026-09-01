@@ -48,16 +48,16 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   @Override
-public void periodic() {s
-// This method will be called once per scheduler run
+  public void periodic() {
+    // This method will be called once per scheduler run
     SmartDashboard.putNumber(IntakeConstants.kSlash + "Intake RPM", m_intakeMotor.getEncoder().getVelocity());
     SmartDashboard.putNumber(IntakeConstants.kSlash + "Intake Output", m_intakeMotor.getAppliedOutput());
     SmartDashboard.putNumber(IntakeConstants.kSlash + "Pivot Position", m_pivotMotor.getEncoder().getPosition());
     SmartDashboard.putNumber(IntakeConstants.kSlash + "Pivot Output Current", m_pivotMotor.getOutputCurrent());
     SmartDashboard.putBoolean(IntakeConstants.kSlash + "Pivot Calibrated", m_pivotCalibrated);
 
-if (!m_pivotCalibrated) {
-if (m_pivotMotor.getOutputCurrent() > IntakeConstants.kPivotStallCurrentThreshold) {
+    if (!m_pivotCalibrated) {
+      if (m_pivotMotor.getOutputCurrent() > IntakeConstants.kPivotStallCurrentThreshold) {
         m_pivotMotor.getEncoder().setPosition(0);
         m_pivotMotor.set(0);
         m_pivotCalibrated = true;
@@ -66,7 +66,7 @@ if (m_pivotMotor.getOutputCurrent() > IntakeConstants.kPivotStallCurrentThreshol
       }
     }
 
-if (m_intakeActive) {
+    if (m_intakeActive) {
       m_intakeMotor.set(m_intakeSpeed);
     } else {
       m_intakeMotor.set(0);
